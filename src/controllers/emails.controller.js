@@ -5,6 +5,7 @@ import { Unsubscribe } from '../models/Unsubscribe.js';
 import { enqueueDraft, enqueueSend } from '../queues/index.js';
 import { aiConfigured } from '../services/ai.js';
 import { HttpError } from '../middleware/error.js';
+import { getSettings } from '../models/Settings.js';
 import { publishEvent } from '../services/events.js';
 
 const draftSchema = z.object({ leadIds: z.array(z.string()).min(1).max(200) });
@@ -92,6 +93,10 @@ export async function approveEmail(req, res, next) {
     if (email.status !== 'draft') throw new HttpError(409, `Only drafts can be approved (this one is ${email.status})`);
     if (!email.to) throw new HttpError(400, 'Recipient email is missing');
     if (await Unsubscribe.exists({ email: email.to })) throw new HttpError(409, 'This recipient has unsubscribed');
+    const settings = await getSettings();
+    if (settings.testMode && !settings.testEmails.length) {
+      throw new HttpError(409, 'Test mode is on — add a test email address in Settings, or turn test mode off');
+    }
 
     email.status = 'approved';
     email.approvedAt = new Date();

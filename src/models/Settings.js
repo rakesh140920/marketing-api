@@ -8,6 +8,9 @@ const settingsSchema = new Schema(
     senderName: { type: String, default: '' },
     senderTitle: { type: String, default: '' },
     signature: { type: String, default: '' },
+    // Test mode: approved emails are really sent, but only to these addresses — never to the lead
+    testMode: { type: Boolean, default: true },
+    testEmails: { type: [String], default: [] },
   },
   { timestamps: true },
 );

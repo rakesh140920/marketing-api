@@ -20,6 +20,9 @@ const emailMessageSchema = new Schema(
     sentAt: { type: Date, index: true },
     providerMessageId: String,
     dryRun: Boolean,
+    // Sent in test mode: delivered to the test addresses below instead of `to`
+    testMode: Boolean,
+    deliveredTo: { type: [String], default: undefined },
     error: String,
   },
   { timestamps: true },

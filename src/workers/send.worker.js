@@ -45,22 +45,45 @@ export const createSendWorker = () =>
         return;
       }
 
+      const settings = await getSettings();
+      const testMode = settings.testMode;
+      if (testMode && !settings.testEmails.length) {
+        email.status = 'failed';
+        email.error = 'Test mode is on but no test email addresses are set (Settings → Test mode)';
+        await email.save();
+        publishEvent('email', { id: String(email._id), leadId: String(email.leadId) });
+        return;
+      }
+
       try {
-        const settings = await getSettings();
-        const result = await sendMail({
-          to: email.to,
-          subject: email.subject,
-          text: withFooter(email.body, settings.signature, email.to),
-        });
+        // Test mode: deliver to the test addresses only, and say who it would have gone to.
+        // The unsubscribe link belongs to the test address, so clicking it can't opt out the real lead.
+        const result = testMode
+          ? await sendMail({
+              to: settings.testEmails,
+              subject: `[TEST] ${email.subject}`,
+              text:
+                `⚠️ TEST MODE — in live mode this email would be sent to ${email.to}\n\n` +
+                withFooter(email.body, settings.signature, settings.testEmails[0]),
+              unsubscribeFor: settings.testEmails[0],
+            })
+          : await sendMail({
+              to: email.to,
+              subject: email.subject,
+              text: withFooter(email.body, settings.signature, email.to),
+            });
 
         email.status = 'sent';
         email.sentAt = new Date();
         email.providerMessageId = result.messageId;
         email.dryRun = result.dryRun;
+        email.testMode = testMode;
+        email.deliveredTo = testMode ? settings.testEmails : [email.to];
         email.error = undefined;
         await email.save();
 
-        if (lead && lead.salesStatus === 'open') {
+        // A test send hasn't contacted the lead
+        if (!testMode && lead && lead.salesStatus === 'open') {
           lead.salesStatus = 'contacted';
           await lead.save();
         }

@@ -8,6 +8,11 @@ const updateSchema = z
     senderName: z.string().trim().max(100),
     senderTitle: z.string().trim().max(100),
     signature: z.string().trim().max(1000),
+    testMode: z.boolean(),
+    testEmails: z
+      .array(z.string().trim().toLowerCase().pipe(z.email('Each test address must be a valid email')))
+      .max(5)
+      .transform((list) => [...new Set(list)]),
   })
   .partial();
 

@@ -22,13 +22,18 @@ export function withFooter(body, signature, to) {
   return parts.join('\n\n');
 }
 
+/**
+ * @param {{ to: string | string[], subject: string, text: string, unsubscribeFor?: string }} mail
+ *   `unsubscribeFor` — address the List-Unsubscribe link belongs to (defaults to `to`)
+ */
 export async function sendMail(mail) {
+  const recipients = [mail.to].flat().join(', ');
   if (env.EMAIL_DRY_RUN) {
-    console.log(`📭 [DRY RUN] would send to ${mail.to}: "${mail.subject}"`);
+    console.log(`📭 [DRY RUN] would send to ${recipients}: "${mail.subject}"`);
     return { messageId: `dry-run-${Date.now()}`, dryRun: true };
   }
 
-  const unsub = unsubscribeUrl(mail.to);
+  const unsub = unsubscribeUrl(mail.unsubscribeFor ?? [mail.to].flat()[0]);
   const info = await getTransporter().sendMail({
     from: { name: env.MAIL_FROM_NAME, address: env.MAIL_FROM_EMAIL },
     to: mail.to,

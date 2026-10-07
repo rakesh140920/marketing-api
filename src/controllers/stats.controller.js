@@ -3,6 +3,7 @@ import { Lead } from '../models/Lead.js';
 import { EmailMessage } from '../models/EmailMessage.js';
 import { aiConfigured, aiModel } from '../services/ai.js';
 import { smtpConfigured } from '../services/mailer.js';
+import { getSettings } from '../models/Settings.js';
 
 /** Leads with an AI fit score at or above this count as "good fit" on the dashboard. */
 export const QUALIFIED_SCORE = 60;
@@ -16,7 +17,8 @@ export async function getStats(_req, res, next) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [leads, withWebsite, withEmail, researched, qualified, emailCounts, sentToday] = await Promise.all([
+    const [settings, leads, withWebsite, withEmail, researched, qualified, emailCounts, sentToday] = await Promise.all([
+      getSettings(),
       Lead.countDocuments(),
       Lead.countDocuments({ website: { $nin: [null, ''] } }),
       Lead.countDocuments({ 'emails.0': { $exists: true } }),
@@ -42,6 +44,8 @@ export async function getStats(_req, res, next) {
         dailyLimit: env.EMAIL_DAILY_LIMIT,
         perMinute: env.EMAIL_PER_MINUTE,
         dryRun: env.EMAIL_DRY_RUN,
+        testMode: settings.testMode,
+        testEmails: settings.testEmails,
       },
       config: {
         googlePlaces: Boolean(env.GOOGLE_PLACES_API_KEY),
