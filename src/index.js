@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { env } from './config/env.js';
+import { env, envFiles, productionWarnings } from './config/env.js';
 import { connectDb } from './config/db.js';
 import { runMigrations } from './config/migrations.js';
 import { createApp } from './app.js';
@@ -15,6 +15,8 @@ async function main() {
 
   const server = createApp().listen(env.PORT, () => {
     console.log(`🚀 API listening on http://localhost:${env.PORT}`);
+    console.log(`⚙️  NODE_ENV=${env.NODE_ENV} · settings from ${envFiles.join(', ') || 'environment variables only'}`);
+    for (const w of productionWarnings()) console.warn(`⚠️  ${w}`);
     void verifySmtp();
   });
 

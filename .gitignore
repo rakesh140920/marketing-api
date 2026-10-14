@@ -1,3 +1,6 @@
 node_modules
 dist
+# Real settings files — never commit (only the template is tracked)
 .env
+.env.*
+!.env.example

@@ -1,5 +1,21 @@
-import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
+/**
+ * Load settings from backend/.env.<NODE_ENV> (e.g. .env.production), then backend/.env.
+ * The first value found wins, and real environment variables (set by the server/host) beat both files.
+ * NODE_ENV itself comes from the real environment, else from .env, else "development".
+ */
+const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const baseFile = path.join(backendDir, '.env');
+const baseValues = fs.existsSync(baseFile) ? dotenv.parse(fs.readFileSync(baseFile)) : {};
+process.env.NODE_ENV ??= baseValues.NODE_ENV || 'development';
+const modeFile = path.join(backendDir, `.env.${process.env.NODE_ENV}`);
+const loadedFiles = [modeFile, baseFile].filter((f) => fs.existsSync(f));
+for (const file of loadedFiles) dotenv.config({ path: file, quiet: true });
 
 const bool = z
   .string()
@@ -54,3 +70,20 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+/** Settings files that were read, e.g. [".env.production", ".env"] — logged on startup. */
+export const envFiles = loadedFiles.map((f) => path.basename(f));
+
+/** Mistakes that matter once the app is public. */
+export function productionWarnings() {
+  if (env.NODE_ENV !== 'production') return [];
+  const local = (url) => /localhost|127\.0\.0\.1/.test(url);
+  const warnings = [];
+  if (local(env.PUBLIC_BASE_URL)) {
+    warnings.push(`PUBLIC_BASE_URL is ${env.PUBLIC_BASE_URL} — unsubscribe links in sent emails will not work for recipients`);
+  }
+  if (local(env.CLIENT_ORIGIN)) {
+    warnings.push(`CLIENT_ORIGIN is ${env.CLIENT_ORIGIN} — the deployed frontend will be blocked by CORS`);
+  }
+  return warnings;
+}
