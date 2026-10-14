@@ -16,7 +16,8 @@ async function main() {
   const workers = startWorkers();
 
   const server = createApp().listen(env.PORT, () => {
-    console.log(`🚀 API listening on http://localhost:${env.PORT}`);
+    // Bound to every network interface; PUBLIC_BASE_URL is how people/emails reach it
+    console.log(`🚀 API listening on port ${env.PORT} · public URL ${env.PUBLIC_BASE_URL}`);
     console.log(`⚙️  NODE_ENV=${env.NODE_ENV} · settings from ${envFiles.join(', ') || 'environment variables only'}`);
     for (const w of productionWarnings()) console.warn(`⚠️  ${w}`);
     void verifySmtp();
