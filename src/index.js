@@ -6,6 +6,7 @@ import { createApp } from './app.js';
 import { startWorkers } from './workers/index.js';
 import { closeQueues } from './queues/index.js';
 import { closeEvents } from './services/events.js';
+import { verifySmtp } from './services/mailer.js';
 
 async function main() {
   await connectDb();
@@ -14,7 +15,7 @@ async function main() {
 
   const server = createApp().listen(env.PORT, () => {
     console.log(`🚀 API listening on http://localhost:${env.PORT}`);
-    if (env.EMAIL_DRY_RUN) console.log('📭 EMAIL_DRY_RUN is on — approved emails are logged, not sent');
+    void verifySmtp();
   });
 
   const shutdown = async (signal) => {

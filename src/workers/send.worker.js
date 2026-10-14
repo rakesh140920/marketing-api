@@ -10,6 +10,11 @@ import { sendMail, withFooter } from '../services/mailer.js';
 import { errorMessage, isLastAttempt } from './util.js';
 import { publishEvent } from '../services/events.js';
 
+/** One line per email in the backend terminal, e.g. 📧 [LIVE] Sunrise Hospital → info@… · "Subject" */
+function logEmail(icon, label, lead, detail, subject) {
+  console.log(`${icon} [${label}] ${lead?.name ?? 'Unknown lead'} → ${detail} · "${subject}"`);
+}
+
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -29,6 +34,7 @@ export const createSendWorker = () =>
         email.status = 'failed';
         email.error = 'Recipient has unsubscribed / is marked do-not-contact';
         await email.save();
+        logEmail('🚫', 'SKIPPED', lead, `${email.to} (unsubscribed / do-not-contact)`, email.subject);
         publishEvent('email', { id: String(email._id), leadId: String(email.leadId) });
         return;
       }
@@ -42,6 +48,7 @@ export const createSendWorker = () =>
         // Daily cap reached — try again shortly after midnight
         const tomorrow = startOfToday().getTime() + 24 * 60 * 60 * 1000;
         await enqueueSend(String(email._id), tomorrow - Date.now() + Math.floor(Math.random() * 30 * 60 * 1000));
+        logEmail('⏳', 'POSTPONED', lead, `${email.to} (daily limit ${env.EMAIL_DAILY_LIMIT} reached, retrying after midnight)`, email.subject);
         return;
       }
 
@@ -51,6 +58,7 @@ export const createSendWorker = () =>
         email.status = 'failed';
         email.error = 'Test mode is on but no test email addresses are set (Settings → Test mode)';
         await email.save();
+        logEmail('❌', 'NOT SENT', lead, `${email.to} (test mode is on but no test addresses are set)`, email.subject);
         publishEvent('email', { id: String(email._id), leadId: String(email.leadId) });
         return;
       }
@@ -82,6 +90,14 @@ export const createSendWorker = () =>
         email.error = undefined;
         await email.save();
 
+        if (result.dryRun) {
+          logEmail('📭', 'DRY RUN', lead, `${email.deliveredTo.join(', ')} (not delivered — EMAIL_DRY_RUN=true)`, email.subject);
+        } else if (testMode) {
+          logEmail('🧪', 'TEST', lead, `${email.deliveredTo.join(', ')} (meant for ${email.to})`, email.subject);
+        } else {
+          logEmail('📧', 'SENT', lead, email.to, email.subject);
+        }
+
         // A test send hasn't contacted the lead
         if (!testMode && lead && lead.salesStatus === 'open') {
           lead.salesStatus = 'contacted';
@@ -89,6 +105,9 @@ export const createSendWorker = () =>
         }
         publishEvent('email', { id: String(email._id), leadId: String(email.leadId) });
       } catch (err) {
+        const target = testMode ? `${settings.testEmails.join(', ')} (meant for ${email.to})` : email.to;
+        const willRetry = !isLastAttempt(job);
+        logEmail('❌', willRetry ? 'FAILED, WILL RETRY' : 'FAILED', lead, `${target} — ${errorMessage(err)}`, email.subject);
         if (isLastAttempt(job)) {
           email.status = 'failed';
           email.error = errorMessage(err);
