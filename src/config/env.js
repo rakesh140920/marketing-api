@@ -29,6 +29,13 @@ const schema = z.object({
   PUBLIC_BASE_URL: z.string().default('http://localhost:5000'),
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
+  // Redis: either REDIS_HOST (+ PORT / PASSWORD …) or one REDIS_URL. REDIS_HOST wins when both are set.
+  REDIS_HOST: z.string().optional(),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_USERNAME: z.string().optional(),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().int().min(0).default(0),
+  REDIS_TLS: bool,
   REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
 
   GOOGLE_PLACES_API_KEY: z.string().optional(),

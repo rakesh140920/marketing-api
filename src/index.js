@@ -7,9 +7,11 @@ import { startWorkers } from './workers/index.js';
 import { closeQueues } from './queues/index.js';
 import { closeEvents } from './services/events.js';
 import { verifySmtp } from './services/mailer.js';
+import { verifyRedis } from './config/redis.js';
 
 async function main() {
   await connectDb();
+  await verifyRedis();
   await runMigrations();
   const workers = startWorkers();
 
